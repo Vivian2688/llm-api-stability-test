@@ -1,0 +1,78 @@
+name: Stability Regression
+
+on:
+  push:
+    branches: [main, dev]
+  pull_request:
+    branches: [main]
+  schedule:
+    - cron: '0 2 * * *'
+  workflow_dispatch:
+
+jobs:
+  regression:
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+
+      - name: Install Newman
+        run: npm install -g newman newman-reporter-htmlextra
+
+      - name: Prepare environment files
+        run: |
+          node -e "
+            const fs = require('fs');
+            let w = JSON.parse(fs.readFileSync('collections/Wenxin_LMAPI.postman_environment.json','utf-8'));
+            w.values.forEach(v => {
+              if (v.key === 'base_url') v.value = process.env.WENXIN_BASE_URL;
+              if (v.key === 'auth_token') v.value = process.env.WENXIN_AUTH_TOKEN;
+            });
+            fs.writeFileSync('collections/Wenxin_LMAPI.postman_environment.json', JSON.stringify(w, null, 2));
+
+            let x = JSON.parse(fs.readFileSync('collections/Xinghe_LMAPI.postman_environment.json','utf-8'));
+            x.values.forEach(v => {
+              if (v.key === 'base_url') v.value = process.env.XINGHE_BASE_URL;
+              if (v.key === 'auth_token') v.value = process.env.XINGHE_AUTH_TOKEN;
+            });
+            fs.writeFileSync('collections/Xinghe_LMAPI.postman_environment.json', JSON.stringify(x, null, 2));
+          "
+        env:
+          WENXIN_BASE_URL: ${{ secrets.WENXIN_BASE_URL }}
+          WENXIN_AUTH_TOKEN: ${{ secrets.WENXIN_AUTH_TOKEN }}
+          XINGHE_BASE_URL: ${{ secrets.XINGHE_BASE_URL }}
+          XINGHE_AUTH_TOKEN: ${{ secrets.XINGHE_AUTH_TOKEN }}
+
+      - name: Run regression
+        run: bash run_regression.sh all all
+
+      - name: Check thresholds
+        run: node scripts/check_thresholds.js
+
+      - name: Append history
+        run: node scripts/append_history.js
+        env:
+          CI_RUN_NUMBER: ${{ github.run_number }}
+
+      - name: Generate trend
+        run: node scripts/generate_trend.js
+
+      - name: Commit history
+        run: |
+          git config user.name "github-actions"
+          git config user.email "github-actions@github.com"
+          git add history/
+          git diff --cached --quiet || git commit -m "ci: append history run #${{ github.run_number }}"
+          git push
+
+      - name: Upload reports
+        uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: regression-reports-${{ github.run_number }}
+          path: reports/

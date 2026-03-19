@@ -1,0 +1,5 @@
+reports/
+node_modules/
+*.zip
+week11_stability_summary.csv
+week11_stability_report.md
