@@ -19,7 +19,7 @@ fs.mkdirSync(HISTORY_DIR, { recursive: true });
 
 const run_date = new Date().toISOString().slice(0, 10);
 const ci_run = parseInt(process.env.CI_RUN_NUMBER || "0");
-const week = "week11";
+const week = "week12";
 
 for (const g of GROUPS) {
     const fp = path.join(REPORTS_DIR, g.file);
@@ -32,6 +32,15 @@ for (const g of GROUPS) {
     const entry = { run_date, ci_run, week, ...data };
 
     const histPath = path.join(HISTORY_DIR, g.histfile);
+
+    // ensure existing content ends with newline before appending
+    if (fs.existsSync(histPath)) {
+        const existing = fs.readFileSync(histPath, "utf-8");
+        if (existing.length > 0 && !existing.endsWith("\n")) {
+            fs.appendFileSync(histPath, "\n", "utf-8");
+        }
+    }
+
     fs.appendFileSync(histPath, JSON.stringify(entry) + "\n", "utf-8");
     console.log("appended -> " + histPath);
 }
