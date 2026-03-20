@@ -4,6 +4,10 @@
 #   bash run_regression.sh all all       - run all 4 groups
 #   bash run_regression.sh A wenxin      - run wenxin phase A only
 #   bash run_regression.sh B xinghe      - run xinghe phase B only
+#
+# Required environment variables (set locally or via CI secrets):
+#   WENXIN_BASE_URL, WENXIN_AUTH_TOKEN
+#   XINGHE_BASE_URL, XINGHE_AUTH_TOKEN
 
 PHASE=${1:-all}
 MODEL=${2:-all}
@@ -39,6 +43,16 @@ run_group() {
     local RUN_ID=$6
     local OUTPUT_BASE="${REPORTS_DIR}/${MODEL_NAME}_week11_${PHASE_NAME}_run"
 
+    local BASE_URL=""
+    local AUTH_TOKEN=""
+    if [[ "$MODEL_NAME" == "wenxin" ]]; then
+        BASE_URL="${WENXIN_BASE_URL}"
+        AUTH_TOKEN="${WENXIN_AUTH_TOKEN}"
+    else
+        BASE_URL="${XINGHE_BASE_URL}"
+        AUTH_TOKEN="${XINGHE_AUTH_TOKEN}"
+    fi
+
     echo ""
     echo "running: ${MODEL_NAME} x ${PHASE_NAME} | iterations=${ITERATIONS} | run_id=${RUN_ID}"
 
@@ -53,6 +67,8 @@ run_group() {
         --reporter-htmlextra-export "${OUTPUT_BASE}.html" \
         --env-var "run_id=${RUN_ID}" \
         --env-var "phase=${FOLDER}" \
+        --env-var "base_url=${BASE_URL}" \
+        --env-var "auth_token=${AUTH_TOKEN}" \
         --suppress-exit-code
 
     echo "done: ${MODEL_NAME} x ${PHASE_NAME}"
